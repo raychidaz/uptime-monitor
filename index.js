@@ -5,11 +5,42 @@
 
 // Dependencies
 const http = require('http');
+const https = require('https');
 const url = require('url');
 const { StringDecoder } = require('string_decoder');
+const config = require('./config');
+const fs = require('fs');
 
-// The server should respond to all requests with a string
-const server = http.createServer(function (request, response) {
+// Instantiate the HTTP server
+const httpServer = http.createServer(function (request, response) {
+  unifiedServer(request, response);
+});
+
+// Start the HTTP server
+httpServer.listen(config.httpPort, function () {
+  console.log(`The server is listening on port ${config.httpPort}`);
+});
+
+// Instantiate the HTTPs server
+const httpsServerOptions = {
+  key: fs.readFileSync('./https/key.pem'),
+  cert: fs.readFileSync('./https/cert.pem'),
+};
+
+const httpsServer = https.createServer(
+  httpsServerOptions,
+  function (request, response) {
+    unifiedServer(request, response);
+  },
+);
+
+// Start the server
+httpsServer.listen(config.httpsPort, function () {
+  console.log(`The server is listening on port ${config.httpsPort}`);
+});
+
+// All the server logic for both the http and https server
+const unifiedServer = function (request, response) {
   // Get the URL and parse it
   const parsedUrl = url.parse(request.url, true);
 
@@ -35,23 +66,63 @@ const server = http.createServer(function (request, response) {
   request.on('end', function () {
     buffer += decoder.end();
 
-    // Send the response
-    response.end('Hello World\n');
+    // Choose the handler this request should go to. If one is not found use the notFound handler.
 
-    // Log the request path
-    console.log('Request is received with this payload: ', buffer);
+    const chosenHandler =
+      typeof router[trimmedPath] !== 'undefined'
+        ? router[trimmedPath]
+        : handlers.notFound;
+
+    // Construct the data object to send to the handler
+    const data = {
+      trimmedPath: trimmedPath,
+      queryStringObject: queryStringObject,
+      method: method,
+      headers: headers,
+      payload: buffer,
+    };
+
+    // Route the request to  the handler specified in  the router
+    chosenHandler(data, function (statusCode, payload) {
+      // Use the status code called back by the  handler, or default to 200
+      statusCode = typeof statusCode == 'number' ? statusCode : 200;
+
+      // Use the payload called  back by the handler, or default  to an empty object
+      payload = typeof payload == 'object' ? payload : {};
+
+      // Convert the payload to a string
+      const payloadString = JSON.stringify(payload);
+
+      // Return the response
+      response.setHeader('Content-Type', 'application/json');
+      response.writeHead(statusCode);
+      // Send the response
+      response.end(payloadString);
+
+      // Log the request path
+      console.log('Returning this response: ', statusCode, payloadString);
+    });
   });
-});
+};
 
-// Log the request  path
-// console.log(
-//   `Request received on path: ${trimmedPath} with  method, ${method} and with these query string parameters`,
-//   queryStringObject,
-// );
-//  console.log('The request is received with these headers', headers);
-//});
+/**
+Event handlers can be used to handle, and verify, user input, user actions, and browser actions: Things that should be done every time a page loads. Things that should be done when the page is closed. Action that should be performed when a user clicks a button.
+ **/
 
-// Start the server, and have it listen on port 3000
-server.listen(3000, function () {
-  console.log('The server is listening on port 3000 now');
-});
+// Define handlers
+const handlers = {};
+
+//  Ping handler
+handlers.ping = function (data, callback) {
+  callback(200);
+};
+
+// Not found handler
+handlers.notFound = function (data, callback) {
+  callback(404);
+};
+
+// Define a request router
+const router = {
+  ping: handlers.ping,
+};
