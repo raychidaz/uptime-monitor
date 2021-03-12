@@ -1,0 +1,13 @@
+{
+  "id": "fc5ul0vojd7bgxu54ner",
+  "userPhone": "5556667778",
+  "protocol": "https",
+  "url": "yahoo.com",
+  "method": "post",
+  "successCodes": [
+    200,
+    201,
+    403
+  ],
+  "timeoutSeconds": 2
+}

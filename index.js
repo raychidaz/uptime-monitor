@@ -93,7 +93,7 @@ const unifiedServer = function (request, response) {
       payload = typeof payload == 'object' ? payload : {};
 
       // Convert the payload to a string
-      const payloadString = JSON.stringify(payload);
+      const payloadString = JSON.stringify(payload); // payload sent back to user
 
       // Return the response
       response.setHeader('Content-Type', 'application/json');
@@ -112,4 +112,5 @@ const router = {
   ping: handlers.ping,
   users: handlers.users,
   tokens: handlers.tokens,
+  checks: handlers.checks,
 };
